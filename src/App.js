@@ -1,10 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RWebShare } from 'react-web-share';
 import './App.css';
+
+const FORCE_DISABLE_NATIVE_SHARE = true;
+
+if (FORCE_DISABLE_NATIVE_SHARE && typeof navigator !== 'undefined' && navigator.share) {
+  console.log('🚫 [Module Level] Overriding navigator.share to null to force fallback');
+  try {
+    Object.defineProperty(navigator, 'share', {
+      value: null,
+      writable: true,
+      configurable: true,
+      enumerable: false
+    });
+  } catch (e) {
+    navigator.share = null;
+  }
+  console.log('✅ [Module Level] navigator.share is now:', navigator.share);
+}
 
 function App() {
   const [pdfFile, setPdfFile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const shareBlockedRef = useRef(false);
+  
+  const isShareBlocked = () => {
+    if (FORCE_DISABLE_NATIVE_SHARE) {
+      console.log('🔒 FORCE_DISABLE_NATIVE_SHARE is true - using fallback modal');
+      return true;
+    }
+    
+    const blockedFlag = localStorage.getItem('shareBlocked');
+    if (blockedFlag === 'true') {
+      console.log('🔒 shareBlocked flag found in localStorage - using fallback modal');
+      return true;
+    }
+    
+    if (!navigator.share) {
+      console.log('🔒 navigator.share not available - using fallback modal');
+      return true;
+    }
+    
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+      console.log('🔒 Not HTTPS - using fallback modal');
+      return true;
+    }
+    
+    return false;
+  };
 
   const dummyData = {
     title: 'Welcome to Share Lib',
@@ -28,50 +71,53 @@ function App() {
       }
     };
 
-    loadPdfFile();
-  }, []);
-
-  const handleShare = async () => {
-    if (!pdfFile) return;
-
-    const shareData = {
-      title: dummyData.title,
-      text: `${dummyData.description}\n\n${dummyData.content}`,
-      url: window.location.href,
-      files: [pdfFile]
-    };
-
-    try {
-      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-        await navigator.share(shareData);
-      } else if (navigator.share) {
-        const shareDataWithoutFiles = {
-          title: shareData.title,
-          text: shareData.text,
-          url: shareData.url
-        };
-        await navigator.share(shareDataWithoutFiles);
-      } else {
-        const shareDataWithoutFiles = {
-          text: shareData.text,
-          url: shareData.url,
-          title: shareData.title
-        };
-        await navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`);
-        alert('Link copied to clipboard!');
-      }
-    } catch (error) {
-      if (error.name !== 'AbortError') {
-        console.error('Error sharing:', error);
-      }
+    const originalShare = navigator.share;
+    
+    if (!FORCE_DISABLE_NATIVE_SHARE && originalShare) {
+      navigator.share = function(...args) {
+        return originalShare.apply(navigator, args).catch((error) => {
+          if (error.name === 'NotAllowedError' || 
+              error.name === 'SecurityError' || 
+              error.name === 'DOMException' ||
+              (error.message && (
+                error.message.includes('not allowed') || 
+                error.message.includes('blocked') ||
+                error.message.includes('denied') ||
+                error.message.includes('permission')
+              ))) {
+            console.warn('Native share is blocked by policy, setting flag for future attempts');
+            localStorage.setItem('shareBlocked', 'true');
+            shareBlockedRef.current = true;
+          }
+          throw error;
+        });
+      };
     }
-  };
+
+    loadPdfFile();
+
+    return () => {
+      if (FORCE_DISABLE_NATIVE_SHARE && originalShare) {
+        navigator.share = originalShare;
+        console.log('🔄 Restored navigator.share');
+      } else if (originalShare) {
+        navigator.share = originalShare;
+      }
+    };
+  }, []);
 
   const shareData = {
     text: `${dummyData.description}\n\n${dummyData.content}`,
     url: window.location.href,
     title: dummyData.title
   };
+
+  useEffect(() => {
+    console.log('📊 Share Data:', shareData);
+    console.log('🔧 disableNative will be:', true);
+    console.log('🌐 navigator.share available:', !!navigator.share);
+    console.log('🚫 FORCE_DISABLE_NATIVE_SHARE:', FORCE_DISABLE_NATIVE_SHARE);
+  }, []);
 
   return (
     <div className="App">
@@ -86,15 +132,23 @@ function App() {
         {!isLoading && pdfFile && (
           <p className="file-info">📄 Attached: sample-document.pdf</p>
         )}
-        {pdfFile ? (
-          <button className="share-button" onClick={handleShare}>
+        <RWebShare 
+          data={shareData}
+          disableNative={true}
+          sites={['facebook', 'twitter', 'whatsapp', 'reddit', 'telegram', 'linkedin', 'mail', 'copy']}
+          onClick={(shareMethod) => {
+            console.log('✅ Shared successfully via:', shareMethod);
+          }}
+        >
+          <button 
+            className="share-button"
+            onClick={() => {
+              console.log('🖱️ Share button clicked - fallback modal should open');
+            }}
+          >
             Share
           </button>
-        ) : (
-          <RWebShare data={shareData}>
-            <button className="share-button">Share</button>
-          </RWebShare>
-        )}
+        </RWebShare>
       </div>
     </div>
   );
