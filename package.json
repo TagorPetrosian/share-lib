@@ -1,0 +1,53 @@
+{
+  "name": "share-lib",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "cra-template-pwa": "2.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-scripts": "5.0.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/user-event": "^14.5.1",
+    "web-vitals": "^2.1.4",
+    "workbox-background-sync": "^6.4.2",
+    "workbox-broadcast-update": "^6.4.2",
+    "workbox-cacheable-response": "^6.4.2",
+    "workbox-core": "^6.4.2",
+    "workbox-expiration": "^6.4.2",
+    "workbox-google-analytics": "^6.4.2",
+    "workbox-navigation-preload": "^6.4.2",
+    "workbox-precaching": "^6.4.2",
+    "workbox-range-requests": "^6.4.2",
+    "workbox-routing": "^6.4.2",
+    "workbox-strategies": "^6.4.2",
+    "workbox-streams": "^6.4.2"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
